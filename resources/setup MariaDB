@@ -1,0 +1,63 @@
+docker run \
+    --detach \
+    --name streaming-mariadb \
+    -v /home/adrian/Documents/mariadb:/var/lib/mysql \
+    -e MYSQL_ROOT_PASSWORD=streaming \
+    -e MYSQL_USER=streaming \
+    -e MYSQL_PASSWORD=streaming \
+    -p 3306:3306 \
+    -d mariadb:10.4
+
+docker exec -it streaming-mariadb mysql -u streaming -p streaming
+
+CREATE DATABASE streaming;
+
+USE streaming;
+
+grant all on streaming to 'streaming'@'%';
+
+CREATE TABLE `order_summary` (
+  `ID` int(11) NOT NULL AUTO_INCREMENT,
+  `INTERVAL_TIMESTAMP` varchar(45) DEFAULT NULL,
+  `PRODUCT` varchar(45) DEFAULT NULL,
+  `TOTAL_VALUE` double DEFAULT NULL,
+  PRIMARY KEY (`ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+grant all on streaming.order_summary to 'streaming'@'%';
+
+
+
+sudo sed -i -e 's/www.apache.org/archive.apache.org/g' /etc/apt/sources.list.d/cassandra.sources.list
+
+
+sudo ./mariadb_repo_setup --mariadb-server-version="mariadb-10.6"
+
+
+conn = mariadb.connect(host="127.0.0.1",port=3306,user="streaming", password="streaming")
+
+
+spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.0.3 --deploy-mode client --master local[*] /home/adrian/source/streamanalytics/src/OrderGenerator.py
+
+import mariadb
+timestamp = "1001"
+product = "Mac"
+value = "2345.45"
+sql = (
+"INSERT INTO streaming.order_summary "
++ "(INTERVAL_TIMESTAMP, PRODUCT, TOTAL_VALUE) VALUES "
++ "( '"
++ timestamp
++ "',"
++ " '"
++ product
++ "',"
++ value
++ ")"
+)
+conn = mariadb.connect(host="127.0.0.1",port=3306,user="streaming", password="streaming")
+cur = conn.cursor()
+cur.execute(sql)
+conn.commit()
+conn.close()
+

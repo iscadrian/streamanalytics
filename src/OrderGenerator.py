@@ -46,25 +46,32 @@ class RowPrinter:
         return True
 
     def process(self, row):
-        print(row)
+        f = open("rawdata","a")
+        f.write(str(row) + "\n")
+        f.close()
+        # print(row)
 
     def close(self, error):
         print("Closed with error: %s" % str(error))
 
 
 class MariaDBWriter:
+
+    updateMgr = None
+
     def open(self, partition_id, epoch_id):
         print("Connecting to MariaDB...")
-        self.updateMgr = MariaDBManager()
-        self.updateMgr.setup()
+        if updateMgr is not None:
+            updateMgr = MariaDBManager()
+            updateMgr.setup()
         return True
 
     def process(self, row):
-        print("inserting records in order_summary")
-        self.updateMgr.insertSummary(str(row[0][0]), row[1], str(row[2]))
+        print("Inserting record:" + str(row))
+        updateMgr.insertSummary(str(row[0][0]), row[1], str(row[2]))
 
     def close(self, error):
-        self.updateMgr.teardown()
+        updateMgr.teardown()
         print("Closed with error: %s" % str(error))
 
 
@@ -187,17 +194,7 @@ def main():
         )
     )
 
-    orderTest = (
-        ordersDf.withColumn("timestamp", F.current_timestamp())
-        .select(
-            F.col("timestamp"),
-            F.col("_SalesOrder__product").alias("product"),
-            F.col("_SalesOrder__price").alias("value"),
-        )
-    )
-
-    # ordersDf.writeStream.foreach(RowPrinter()).start()
-    # orderTest.writeStream.foreach(MariaDBWriter()).start()
+    ordersDf.writeStream.foreach(RowPrinter()).start()
 
     windowedSummary = (
         ordersDf.selectExpr(
@@ -211,6 +208,7 @@ def main():
     )
 
     windowedSummary.writeStream.foreach(MariaDBWriter()).start()
+    # windowedSummary.writeStream.foreach(RowPrinter()).start()
 
 
 if __name__ == "__main__":
